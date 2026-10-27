@@ -33,7 +33,7 @@ jobs:
           Get-Process terminal64 -ErrorAction SilentlyContinue | Stop-Process -Force
           Start-Sleep 3
       - name: python deps
-        run: pip install MetaTrader5==5.0.5735 numpy
+        run: pip install MetaTrader5 numpy; python -c "import MetaTrader5 as m; print(m.__version__)"
       - name: probe
         env:
           MT5_SERVERS_1: ${{ secrets.MT5_SERVERS_1 }}
