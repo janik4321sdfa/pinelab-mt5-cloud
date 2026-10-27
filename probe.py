@@ -32,7 +32,13 @@ shot("0_before")
 
 mode = os.environ.get("MODE", "probe")
 # A) launch terminal ourselves (non-portable), let it create its data dir, then put servers.dat there
-p = subprocess.Popen([EXE])
+pw = os.environ.get("MT5_PASSWORD", "")
+args = [EXE]
+ini = os.path.join(os.environ.get("RUNNER_TEMP", "."), "start.ini")
+if mode == "login" and pw:
+    open(ini, "w", encoding="utf-16").write(f"[Common]\nLogin={LOGIN}\nPassword={pw}\nServer={SERVER}\nKeepPrivate=1\nNewsEnable=0\n[Experts]\nAllowLiveTrading=1\nEnabled=1\n")
+    args.append("/config:" + ini)
+p = subprocess.Popen(args)
 time.sleep(70)
 print("procs after launch:", procs())
 esc = "$w=New-Object -ComObject WScript.Shell; $ok=$w.AppActivate('MetaTrader 5'); Start-Sleep 1; $w.SendKeys('{ESC}'); Start-Sleep 2; 'appactivate '+$ok"
@@ -44,14 +50,18 @@ print("data dirs:", dirs)
 if servers and dirs:
     for d in dirs: open(os.path.join(d, "servers.dat"), "wb").write(servers)
     print("servers.dat written to", len(dirs), "dirs")
-ok = step("initialize attach (no login)", lambda: mt5.initialize(path=EXE, timeout=120000))
+if mode == "login" and pw:
+    ok = step("initialize with login", lambda: mt5.initialize(path=EXE, login=LOGIN, password=pw, server=SERVER, timeout=120000))
+    try: os.remove(ini)
+    except OSError: pass
+else:
+    ok = step("initialize attach (no login)", lambda: mt5.initialize(path=EXE, timeout=120000))
 if ok is True:
     ti = mt5.terminal_info()
     print("terminal:", {k: getattr(ti, k) for k in ("build", "connected", "path", "data_path")})
-pw = os.environ.get("MT5_PASSWORD", "")
 if ok is True:
     if mode == "login" and pw:
-        r = step("login real", lambda: mt5.login(LOGIN, password=pw, server=SERVER, timeout=120000))
+        r = True
     else:
         r = step("login dummy (connectivity only)", lambda: mt5.login(LOGIN, password="probe-not-a-password", server=SERVER, timeout=60000))
     if r is True:
