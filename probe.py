@@ -33,7 +33,7 @@ shot("0_before")
 mode = os.environ.get("MODE", "probe")
 # A) launch terminal ourselves (non-portable), let it create its data dir, then put servers.dat there
 p = subprocess.Popen([EXE])
-time.sleep(40)
+time.sleep(70)
 print("procs after launch:", procs())
 esc = "$w=New-Object -ComObject WScript.Shell; $ok=$w.AppActivate('MetaTrader 5'); Start-Sleep 1; $w.SendKeys('{ESC}'); Start-Sleep 2; 'appactivate '+$ok"
 print(subprocess.run(["powershell", "-NoProfile", "-Command", esc], capture_output=True, text=True).stdout.strip())
