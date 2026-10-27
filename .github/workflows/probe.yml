@@ -21,7 +21,8 @@ jobs:
         run: |
           $t0 = Get-Date
           $ProgressPreference = 'SilentlyContinue'
-          Invoke-WebRequest "https://download.mql5.com/cdn/web/metaquotes.software.corp/mt5/mt5setup.exe" -OutFile mt5setup.exe
+          try { Invoke-WebRequest "https://download.mql5.com/cdn/web/metaquotes.software.corp/mt5/mt5setup.exe" -OutFile mt5setup.exe } catch { "cert problem: $($_.Exception.Message) -> retry without TLS chain check, then verify Authenticode"; Invoke-WebRequest "https://download.mql5.com/cdn/web/metaquotes.software.corp/mt5/mt5setup.exe" -OutFile mt5setup.exe -SkipCertificateCheck }
+          $sig = Get-AuthenticodeSignature .\mt5setup.exe; "signature: $($sig.Status) $($sig.SignerCertificate.Subject)"; if ($sig.Status -ne 'Valid' -or $sig.SignerCertificate.Subject -notmatch 'MetaQuotes') { throw 'installer signature invalid' }
           Start-Process .\mt5setup.exe -ArgumentList "/auto" -Wait
           $exe = "C:\Program Files\MetaTrader 5\terminal64.exe"
           for ($i = 0; $i -lt 120 -and -not (Test-Path $exe); $i++) { Start-Sleep 5 }
