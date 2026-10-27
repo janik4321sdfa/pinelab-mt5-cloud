@@ -27,6 +27,9 @@ jobs:
           $exe = "C:\Program Files\MetaTrader 5\terminal64.exe"
           for ($i = 0; $i -lt 120 -and -not (Test-Path $exe); $i++) { Start-Sleep 5 }
           "installed=$(Test-Path $exe) after $([int]((Get-Date)-$t0).TotalSeconds) s"
+          for ($i = 0; $i -lt 60 -and (Get-Process mt5setup -ErrorAction SilentlyContinue); $i++) { Start-Sleep 5 }
+          Start-Sleep 20
+          Get-Process | ? { $_.Name -match "terminal|mt5" } | Select Name,Id,SessionId | Format-Table | Out-String
           Get-Process terminal64 -ErrorAction SilentlyContinue | Stop-Process -Force
           Start-Sleep 3
       - name: python deps
@@ -38,3 +41,8 @@ jobs:
           MT5_PASSWORD: ${{ secrets.MT5_PASSWORD }}
           MODE: ${{ github.event.inputs.mode }}
         run: python probe.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: shots
+          path: shots
