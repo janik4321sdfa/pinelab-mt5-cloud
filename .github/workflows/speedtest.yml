@@ -22,10 +22,9 @@ jobs:
           try { $ip = Invoke-RestMethod https://ipinfo.io/json -TimeoutSec 10; "LOCATION: $($ip.city), $($ip.region), $($ip.country) | $($ip.org)" } catch { "LOCATION: ipinfo failed" }
           & $curl --version | Select-Object -First 1
           $tests = @(
-            @('Cloudflare CDN 100MB',        'https://speed.cloudflare.com/__down?bytes=100000000'),
             @('Hetzner Ashburn US 100MB',    'https://ash-speed.hetzner.com/100MB.bin'),
             @('Hetzner Falkenstein DE 100MB','https://fsn1-speed.hetzner.com/100MB.bin'),
-            @('Tele2 EU 100MB',              'http://speedtest.tele2.net/100MB.zip'),
+            @('OVH Gravelines FR 100MB',     'https://proof.ovh.net/files/100Mb.dat'),
             @('MetaQuotes mt5setup.exe',     'https://download.mql5.com/cdn/web/metaquotes.software.corp/mt5/mt5setup.exe')
           )
           $rows = @()
@@ -38,12 +37,14 @@ jobs:
               $row; $rows += $row
             }
           }
-          $t0 = Get-Date
-          $jobs = 1..4 | ForEach-Object { Start-ThreadJob -ScriptBlock { param($c,$n) & $c -s --max-time 60 -o $n -w "%{size_download}" "https://speed.cloudflare.com/__down?bytes=100000000" } -ArgumentList $curl, $nul }
-          $sizes = $jobs | Wait-Job | Receive-Job
-          $sec = ((Get-Date) - $t0).TotalSeconds
-          $tot = ($sizes | ForEach-Object { [double]$_ } | Measure-Object -Sum).Sum
-          $row = "DL | Cloudflare 4 parallel x100MB | {0:N0} MB in {1:N1} s | {2:N0} Mbit/s aggregate" -f ($tot/1e6), $sec, ($tot*8/1e6/$sec); $row; $rows += $row
+          foreach ($pp in @(@('Hetzner US 4 parallel x1GB','https://ash-speed.hetzner.com/1GB.bin'), @('Hetzner DE 4 parallel x1GB','https://fsn1-speed.hetzner.com/1GB.bin'))) {
+            $t0 = Get-Date
+            $jobs = 1..4 | ForEach-Object { Start-ThreadJob -ScriptBlock { param($c,$n,$u) & $c -s --max-time 30 -o $n -w "%{size_download}" $u } -ArgumentList $curl, $nul, $pp[1] }
+            $sizes = $jobs | Wait-Job | Receive-Job
+            $sec = ((Get-Date) - $t0).TotalSeconds
+            $tot = ($sizes | ForEach-Object { [double]$_ } | Measure-Object -Sum).Sum
+            $row = "DL | {0} | {1:N0} MB in {2:N1} s | {3:N0} Mbit/s aggregate" -f $pp[0], ($tot/1e6), $sec, ($tot*8/1e6/$sec); $row; $rows += $row
+          }
           $f = Join-Path $env:RUNNER_TEMP 'up.bin'; $b = New-Object byte[] 25000000; (New-Object Random 1).NextBytes($b); [IO.File]::WriteAllBytes($f, $b)
           for ($i = 1; $i -le 2; $i++) {
             $w = & $curl -s --max-time 60 -o $nul -X POST --data-binary "@$f" -w "%{http_code} %{size_upload} %{speed_upload} %{time_total}" https://speed.cloudflare.com/__up
